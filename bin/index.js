@@ -144,7 +144,10 @@ class SamreSdkService {
     try {
       final res = await http.get(
         Uri.parse('\${SamreConfig.baseUrl}/api/sdk/app-info'),
-        headers: {'X-App-Key': SamreConfig.apiKey},
+        headers: {
+          'X-App-Key': SamreConfig.apiKey,
+          'ngrok-skip-browser-warning': 'true',
+        },
       ).timeout(const Duration(seconds: 8));
 
       if (res.statusCode == 200) {
@@ -169,6 +172,7 @@ class SamreSdkService {
         headers: {
           'Content-Type': 'application/json',
           'X-App-Key': SamreConfig.apiKey,
+          'ngrok-skip-browser-warning': 'true',
         },
         body: jsonEncode({
           'apiKey': SamreConfig.apiKey,
