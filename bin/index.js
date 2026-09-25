@@ -118,6 +118,7 @@ function generateDartSdkContent(apiKey, baseUrl) {
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -258,8 +259,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   Map<String, dynamic>? _verificationResult;
 
   String get _todayKey => DateTime.now().toIso8601String().substring(0, 10);
-  String get _lockFilePath => '${Directory.systemTemp.path}/samre_val_${SamreConfig.apiKey}_$_todayKey.lock';
-  String get _uidFilePath => '${Directory.systemTemp.path}/samre_uid_${SamreConfig.apiKey}.txt';
+  String get _lockFilePath => '\${Directory.systemTemp.path}/samre_val_\${SamreConfig.apiKey}_\$_todayKey.lock';
+  String get _uidFilePath => '\${Directory.systemTemp.path}/samre_uid_\${SamreConfig.apiKey}.txt';
 
   @override
   void initState() {
@@ -398,7 +399,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       // Sauvegarder la validation du jour pour que le formulaire ne réapparaisse plus du tout aujourd'hui
       try {
         final file = File(_lockFilePath);
-        await file.writeAsString('validated_${DateTime.now().toIso8601String()}');
+        await file.writeAsString('validated_\${DateTime.now().toIso8601String()}');
         final uidFile = File(_uidFilePath);
         await uidFile.writeAsString(uid);
       } catch (_) {}
