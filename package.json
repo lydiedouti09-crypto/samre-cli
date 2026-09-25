@@ -1,0 +1,19 @@
+{
+  "name": "samre-cli",
+  "version": "1.2.1",
+  "description": "CLI officielle Samré pour l'injection automatique du SDK dans les applications mobiles Flutter.",
+  "main": "bin/index.js",
+  "bin": {
+    "samre-cli": "./bin/index.js",
+    "samre": "./bin/index.js"
+  },
+  "keywords": [
+    "samre",
+    "flutter",
+    "google-play",
+    "closed-testing",
+    "sdk"
+  ],
+  "author": "Samre Global",
+  "license": "MIT"
+}
