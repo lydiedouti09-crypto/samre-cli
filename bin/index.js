@@ -35,9 +35,18 @@ function error(msg) {
 }
 
 function printBanner() {
-  log(`\n${BLUE}${BOLD}================================================================${RESET}`);
-  log(`${CYAN}${BOLD}       🚀 SAMRÉ FLUTTER SDK — INJECTEUR AUTOMATIQUE             ${RESET}`);
-  log(`${BLUE}${BOLD}================================================================${RESET}\n`);
+  let version = "1.0.0";
+  try {
+    const pkg = require('../package.json');
+    version = pkg.version || "1.0.0";
+  } catch (_) {}
+
+  log(`\n${CYAN}${BOLD}  ███████╗ █████╗ ███╗   ███╗██████╗ ███████╗`);
+  log(`  ██╔════╝██╔══██╗████╗ ████║██╔══██╗██╔════╝`);
+  log(`  ███████╗███████║██╔████╔██║██████╔╝█████╗  `);
+  log(`  ╚════██║██╔══██║██║╚██╔╝██║██╔══██╗██╔══╝  `);
+  log(`  ███████║██║  ██║██║ ╚═╝ ██║██║  ██║███████╗`);
+  log(`  ╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝ - CLI v${version}${RESET}\n`);
 }
 
 function parseArgs() {
