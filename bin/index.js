@@ -559,8 +559,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _verificationResult = res;
     });
 
-    // Auto-fermeture après validation réussie ou si déjà validé
-    if (res['success'] == true || (res['message'] != null && res['message'].toString().contains('déjà été validé'))) {
+    // Auto-fermeture UNIQUEMENT après validation réussie
+    if (res['success'] == true) {
       // Sauvegarder la validation du jour pour que le formulaire ne réapparaisse plus du tout aujourd'hui
       try {
         final file = File(_lockFilePath);
@@ -774,14 +774,12 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                 margin: const EdgeInsets.only(bottom: 16),
                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                                 decoration: BoxDecoration(
-                                  color: (_verificationResult!['success'] == true ||
-                                          _verificationResult!['message'].toString().contains('déjà'))
+                                  color: (_verificationResult!['success'] == true)
                                       ? const Color(0xFFECFDF5)
                                       : const Color(0xFFFEF2F2),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: (_verificationResult!['success'] == true ||
-                                            _verificationResult!['message'].toString().contains('déjà'))
+                                    color: (_verificationResult!['success'] == true)
                                         ? const Color(0xFFA7F3D0)
                                         : const Color(0xFFFECACA),
                                   ),
@@ -789,12 +787,10 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                 child: Row(
                                   children: [
                                     Icon(
-                                      (_verificationResult!['success'] == true ||
-                                              _verificationResult!['message'].toString().contains('déjà'))
+                                      (_verificationResult!['success'] == true)
                                           ? Icons.check_circle_rounded
                                           : Icons.error_outline_rounded,
-                                      color: (_verificationResult!['success'] == true ||
-                                              _verificationResult!['message'].toString().contains('déjà'))
+                                      color: (_verificationResult!['success'] == true)
                                           ? const Color(0xFF059669)
                                           : const Color(0xFFDC2626),
                                       size: 20,
@@ -804,8 +800,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                       child: Text(
                                         _verificationResult!['message'],
                                         style: TextStyle(
-                                          color: (_verificationResult!['success'] == true ||
-                                                  _verificationResult!['message'].toString().contains('déjà'))
+                                          color: (_verificationResult!['success'] == true)
                                               ? const Color(0xFF065F46)
                                               : const Color(0xFF991B1B),
                                           fontSize: 12,
