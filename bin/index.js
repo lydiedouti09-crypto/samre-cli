@@ -416,23 +416,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     if (_positionInitialized) return;
     _positionInitialized = true;
     
-    // Position dynamique calculée selon le jour / session pour changer de page et d'endroit
-    final daySeed = DateTime.now().day % 4;
-    switch (daySeed) {
-      case 0: // En bas à droite
-        _btnPosition = Offset(screenSize.width - 180, screenSize.height - 110);
-        break;
-      case 1: // En haut à droite (sous l'app bar)
-        _btnPosition = Offset(screenSize.width - 180, 90);
-        break;
-      case 2: // Au milieu à droite
-        _btnPosition = Offset(screenSize.width - 180, screenSize.height / 2 - 25);
-        break;
-      case 3: // En bas à gauche
-      default:
-        _btnPosition = Offset(20, screenSize.height - 110);
-        break;
-    }
+    // Position sécurisée par défaut : en bas à droite, bien dégagée des bords
+    _btnPosition = Offset(screenSize.width - 165, screenSize.height - 110);
   }
 
   Future<void> _submitVerification() async {
@@ -509,11 +494,11 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
           children: [
             widget.child,
 
-            // 1. Bouton Flottant Déplaçable au Doigt (UNIQUEMENT sur les autres pages)
+            // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Bleu Électrique)
             if (showButton)
               Positioned(
-                left: _btnPosition!.dx.clamp(10.0, screenSize.width - 170.0),
-                top: _btnPosition!.dy.clamp(40.0, screenSize.height - 80.0),
+                left: _btnPosition!.dx.clamp(12.0, (screenSize.width - 160.0).clamp(12.0, double.infinity)),
+                top: _btnPosition!.dy.clamp(50.0, (screenSize.height - 85.0).clamp(50.0, double.infinity)),
                 child: SafeArea(
                   child: GestureDetector(
                     onPanUpdate: (details) {
@@ -528,17 +513,17 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: () => setState(() => _showModal = true),
-                        borderRadius: BorderRadius.circular(30),
+                        borderRadius: BorderRadius.circular(25),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
                               colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
                             ),
-                            borderRadius: BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(25),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF2563EB).withOpacity(0.45),
+                                color: const Color(0xFF2563EB).withOpacity(0.38),
                                 blurRadius: 14,
                                 offset: const Offset(0, 5),
                               ),
@@ -553,8 +538,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                 'Valider le test',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
                                   decoration: TextDecoration.none,
                                 ),
                               ),
@@ -567,55 +552,55 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                 ),
               ),
 
-          // 2. Modale de Validation Design Premium (Fond clair / Blanc épuré moderne)
+          // 2. Modale de Validation Design Compacte et Épurée (Style Carte Blanche Arrondie)
           if (_showModal)
             Positioned.fill(
               child: Material(
-                color: Colors.black.withOpacity(0.55),
+                color: Colors.black.withOpacity(0.40),
                 child: SafeArea(
                   child: Center(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.only(
-                        left: 20,
-                        right: 20,
+                        left: 18,
+                        right: 18,
                         top: 20,
                         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
                       ),
                       child: Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
+                          borderRadius: BorderRadius.circular(26),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.22),
+                              color: Colors.black.withOpacity(0.18),
                               blurRadius: 30,
-                              offset: const Offset(0, 12),
+                              offset: const Offset(0, 10),
                             ),
                           ],
                         ),
-                        constraints: const BoxConstraints(maxWidth: 380),
-                        padding: const EdgeInsets.all(24),
+                        constraints: const BoxConstraints(maxWidth: 355),
+                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 22),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // En-tête avec Icône et Fermeture
+                            // En-tête avec Icône Bouclier et Fermeture
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Container(
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
-                                    ),
+                                    color: const Color(0xFFEFF6FF),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: const Icon(
-                                    Icons.verified_user_rounded,
-                                    color: Color(0xFF2563EB),
-                                    size: 24,
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.verified_user_rounded,
+                                      color: Color(0xFF2563EB),
+                                      size: 24,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -624,16 +609,16 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Validation de test',
+                                        'Validation SAMRE',
                                         style: TextStyle(
                                           color: Color(0xFF0F172A),
-                                          fontSize: 17,
+                                          fontSize: 16,
                                           fontWeight: FontWeight.w800,
                                         ),
                                       ),
                                       SizedBox(height: 2),
                                       Text(
-                                        'Test de présence quotidienne',
+                                        'Test Google Play Closed Testing',
                                         style: TextStyle(
                                           color: Color(0xFF64748B),
                                           fontSize: 11,
@@ -647,14 +632,14 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                   onTap: () => setState(() => _showModal = false),
                                   borderRadius: BorderRadius.circular(20),
                                   child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(20),
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFF1F5F9),
+                                      shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
                                       Icons.close,
-                                      size: 16,
+                                      size: 15,
                                       color: Color(0xFF64748B),
                                     ),
                                   ),
@@ -712,10 +697,10 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                             const Text(
                               'IDENTIFIANT TESTEUR',
                               style: TextStyle(
-                                color: Color(0xFF475569),
+                                color: Color(0xFF64748B),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
+                                letterSpacing: 0.6,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -726,14 +711,14 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                               enableSuggestions: false,
                               style: const TextStyle(
                                 color: Color(0xFF0F172A),
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.8,
                               ),
                               decoration: InputDecoration(
-                                hintText: 'Ex: TST-5D735C',
+                                hintText: 'TST-65CE12',
                                 hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                                prefixIcon: const Icon(Icons.badge_outlined, color: Color(0xFF64748B), size: 18),
+                                prefixIcon: const Icon(Icons.person_rounded, color: Color(0xFF64748B), size: 19),
                                 filled: true,
                                 fillColor: const Color(0xFFF8FAFC),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -753,10 +738,10 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                             const Text(
                               'CODE DU JOUR',
                               style: TextStyle(
-                                color: Color(0xFF475569),
+                                color: Color(0xFF64748B),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
+                                letterSpacing: 0.6,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -767,14 +752,15 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                               enableSuggestions: false,
                               style: const TextStyle(
                                 color: Color(0xFF0F172A),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.5,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
                               ),
                               decoration: InputDecoration(
-                                hintText: 'Ex: ZOGB-J01-066B4E',
+                                hintText: 'ZOGB-J01-E9D0F',
                                 hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
                                 prefixIcon: const Icon(Icons.key_rounded, color: Color(0xFF64748B), size: 18),
+                                suffixIcon: const Icon(Icons.visibility_outlined, color: Color(0xFF94A3B8), size: 18),
                                 filled: true,
                                 fillColor: const Color(0xFFF8FAFC),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -790,35 +776,56 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                             ),
                             const SizedBox(height: 20),
 
-                            // Bouton d'Action
-                            ElevatedButton(
-                              onPressed: _submitting ? null : _submitVerification,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF2563EB),
-                                foregroundColor: Colors.white,
-                                elevation: 2,
-                                shadowColor: const Color(0xFF2563EB).withOpacity(0.35),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                            // Bouton d'Action avec Dégradé et Flèche
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: _submitting ? null : _submitVerification,
+                                borderRadius: BorderRadius.circular(14),
+                                child: Ink(
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF2563EB).withOpacity(0.35),
+                                        blurRadius: 14,
+                                        offset: const Offset(0, 5),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    alignment: Alignment.center,
+                                    child: _submitting
+                                        ? const SizedBox(
+                                            height: 20,
+                                            width: 20,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : const Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                'Valider ma présence aujourd\\'hui',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 13.5,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              SizedBox(width: 8),
+                                              Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 17),
+                                            ],
+                                          ),
+                                  ),
                                 ),
                               ),
-                              child: _submitting
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'Valider ma présence aujourd\\'hui',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
                             ),
                           ],
                         ),
