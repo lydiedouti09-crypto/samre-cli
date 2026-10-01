@@ -799,9 +799,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
             ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 }
 `;
 }
@@ -874,6 +873,23 @@ async function handleInject(options) {
   } else {
     success("Dépendance http déjà présente dans pubspec.yaml.");
   }
+
+  // 3bis. Vérifier et créer automatiquement les dossiers d'assets déclarés dans pubspec.yaml (ex: assets/images/)
+  try {
+    const assetMatches = pubspecContent.match(/^\s*-\s+([a-zA-Z0-9_\-\/]+)\/?\s*$/gm);
+    if (assetMatches) {
+      for (const rawMatch of assetMatches) {
+        const cleanedPath = rawMatch.replace(/^\s*-\s+/, '').trim().replace(/\/+$/, '');
+        if (cleanedPath && (cleanedPath.startsWith('assets') || cleanedPath.includes('/'))) {
+          const targetDir = path.join(cwd, cleanedPath);
+          if (!fs.existsSync(targetDir)) {
+            fs.mkdirSync(targetDir, { recursive: true });
+            info(`Dossier d'assets manquant créé automatiquement : ${cleanedPath}/`);
+          }
+        }
+      }
+    }
+  } catch (_) {}
 
   // 4. Générer le fichier lib/samre_sdk.dart
   const sdkPath = path.join(cwd, 'lib', 'samre_sdk.dart');
