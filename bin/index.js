@@ -324,21 +324,26 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   }
 
   Future<void> _checkIfAlreadyValidatedToday() async {
-    // 1. Vérification du fichier lock local pour le jour en cours
+    // 1. Vérification du fichier lock local (expire automatiquement après 5 minutes en mode test)
     try {
       final file = File(_lockFilePath);
       if (await file.exists()) {
-        if (mounted) {
-          setState(() {
-            _validated = true;
-            _canValidate = false;
-          });
+        final lastModified = await file.lastModified();
+        if (DateTime.now().difference(lastModified).inMinutes < 5) {
+          if (mounted) {
+            setState(() {
+              _validated = true;
+              _canValidate = false;
+            });
+          }
+          return;
+        } else {
+          try { await file.delete(); } catch (_) {}
         }
-        return;
       }
     } catch (_) {}
 
-    // 2. Pré-remplir l'identifiant et vérifier immédiatement sur le serveur si déjà validé aujourd'hui
+    // 2. Pré-remplir l'identifiant et vérifier immédiatement sur le serveur si déjà validé
     try {
       final uidFile = File(_uidFilePath);
       if (await uidFile.exists()) {
@@ -350,16 +355,17 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
           // Vérification distante instantanée auprès de l'API Samré
           final status = await SamreSdkService.checkStatus(panelisteUid: savedUid);
           if (status['validatedToday'] == true) {
-            // Créer le lock local pour les lancements suivants
-            try {
-              final file = File(_lockFilePath);
-              await file.writeAsString('validated_\${DateTime.now().toIso8601String()}');
-            } catch (_) {}
-
             if (mounted) {
               setState(() {
                 _validated = true;
                 _canValidate = false;
+              });
+            }
+          } else {
+            if (mounted) {
+              setState(() {
+                _validated = false;
+                _canValidate = true;
               });
             }
           }
