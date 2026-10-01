@@ -279,10 +279,7 @@ class SamreOverlay extends StatefulWidget {
 }
 
 class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver {
-  Timer? _timer;
-  int _seconds = 0;
-  int _interactions = 0;
-  bool _canValidate = false;
+  bool _canValidate = true;
   bool _validated = false;
   bool _active = true;
   bool _showModal = false;
@@ -307,7 +304,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
     _checkIfAlreadyValidatedToday();
     _checkActive();
-    _startTimer();
   }
 
   @override
@@ -322,7 +318,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   void dispose() {
     SamreRouteObserver.navigationNotifier.removeListener(_onNavigationChange);
     WidgetsBinding.instance.removeObserver(this);
-    _timer?.cancel();
     _uidController.dispose();
     _codeController.dispose();
     super.dispose();
@@ -339,7 +334,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
             _canValidate = false;
           });
         }
-        _timer?.cancel();
         return;
       }
     } catch (_) {}
@@ -368,7 +362,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                 _canValidate = false;
               });
             }
-            _timer?.cancel();
           }
         }
       }
@@ -381,24 +374,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     }
   }
 
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
-      if (!_active || _validated) {
-        t.cancel();
-        return;
-      }
-      if (mounted) {
-        setState(() {
-          _seconds++;
-          if (_seconds >= 6) {
-            _canValidate = true;
-          }
-        });
-      }
-    });
-  }
-
   Future<void> _checkActive() async {
     final data = await SamreSdkService.fetchAppInfo();
     final app = data['application'] as Map<String, dynamic>? ?? <String, dynamic>{};
@@ -407,7 +382,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     if (mounted) {
       setState(() {
         _active = active;
-        if (!_active) _timer?.cancel();
       });
     }
   }
@@ -443,7 +417,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
     // Auto-fermeture UNIQUEMENT après validation réussie
     if (res['success'] == true) {
-      // Sauvegarder la validation du jour pour que le formulaire ne réapparaisse plus du tout aujourd'hui
       try {
         final file = File(_lockFilePath);
         await file.writeAsString('validated_\${DateTime.now().toIso8601String()}');
@@ -454,7 +427,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       setState(() {
         _validated = true;
         _canValidate = false;
-        _timer?.cancel();
       });
       Future.delayed(const Duration(milliseconds: 1400), () {
         if (mounted) {
@@ -476,23 +448,13 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _initPosition(screenSize);
     }
 
-    // Le bouton NE DOIT JAMAIS s'afficher sur la page de démarrage (page 1 / splash / accueil initial)
-    // Il n'apparaît que quand le testeur a navigué sur une autre page (routeDepth > 0 ou pageChanges > 0 ou interactions suffisantes)
-    final bool isStartPage = (SamreRouteObserver.routeDepth == 0 && SamreRouteObserver.pageChanges == 0 && _interactions < 8);
-    final bool showButton = _canValidate && !_validated && !isStartPage && !_showModal && _btnPosition != null;
+    final bool showButton = !_validated && !_showModal && _btnPosition != null;
 
     return Directionality(
       textDirection: TextDirection.ltr,
-      child: Listener(
-        onPointerDown: (_) {
-          _interactions++;
-          if (_interactions >= 8 && !_canValidate && _seconds >= 5) {
-            setState(() => _canValidate = true);
-          }
-        },
-        child: Stack(
-          children: [
-            widget.child,
+      child: Stack(
+        children: [
+          widget.child,
 
             // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Bleu Électrique)
             if (showButton)
