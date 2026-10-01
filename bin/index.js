@@ -171,6 +171,28 @@ class SamreSdkService {
     return statut != 'cloturee' && statut != 'archivee' && statut != 'terminee';
   }
 
+  static Future<Map<String, dynamic>> checkStatus({
+    required String panelisteUid,
+  }) async {
+    final cleanUid = panelisteUid.trim().toUpperCase();
+    if (cleanUid.isEmpty) return <String, dynamic>{};
+
+    try {
+      final res = await http.get(
+        Uri.parse('\${SamreConfig.baseUrl}/api/sdk/status?apiKey=\${SamreConfig.apiKey}&panelisteId=\$cleanUid'),
+        headers: {
+          'X-App-Key': SamreConfig.apiKey,
+          'ngrok-skip-browser-warning': 'true',
+        },
+      ).timeout(const Duration(seconds: 8));
+
+      if (res.statusCode == 200) {
+        return Map<String, dynamic>.from(jsonDecode(res.body));
+      }
+    } catch (_) {}
+    return <String, dynamic>{};
+  }
+
   static Future<Map<String, dynamic>> verifyCode({
     required String panelisteUid,
     required String code,
@@ -264,8 +286,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   bool _validated = false;
   bool _active = true;
   bool _showModal = false;
-  Map<String, dynamic>? _dailyPage;
-  int? _dailyPageDay;
 
   // Position déplaçable au doigt
   Offset? _btnPosition;
@@ -279,9 +299,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   String get _todayKey => DateTime.now().toIso8601String().substring(0, 10);
   String get _lockFilePath => '\${Directory.systemTemp.path}/samre_val_\${SamreConfig.apiKey}_\$_todayKey.lock';
   String get _uidFilePath => '\${Directory.systemTemp.path}/samre_uid_\${SamreConfig.apiKey}.txt';
-  String get _campaignStartPath => '\${Directory.systemTemp.path}/samre_start_\${SamreConfig.apiKey}.txt';
-
-  String _dailyPageLockPath(int day) => '\${Directory.systemTemp.path}/samre_page_\${SamreConfig.apiKey}_day_\$day.lock';
 
   @override
   void initState() {
@@ -312,6 +329,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   }
 
   Future<void> _checkIfAlreadyValidatedToday() async {
+    // 1. Vérification du fichier lock local pour le jour en cours
     try {
       final file = File(_lockFilePath);
       if (await file.exists()) {
@@ -326,13 +344,32 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       }
     } catch (_) {}
 
-    // Pré-remplir l'identifiant s'il avait déjà été saisi lors d'une session précédente
+    // 2. Pré-remplir l'identifiant et vérifier immédiatement sur le serveur si déjà validé aujourd'hui
     try {
       final uidFile = File(_uidFilePath);
       if (await uidFile.exists()) {
         final savedUid = (await uidFile.readAsString()).trim();
-        if (savedUid.isNotEmpty && _uidController.text.isEmpty) {
-          _uidController.text = savedUid;
+        if (savedUid.isNotEmpty) {
+          if (_uidController.text.isEmpty && mounted) {
+            _uidController.text = savedUid;
+          }
+          // Vérification distante instantanée auprès de l'API Samré
+          final status = await SamreSdkService.checkStatus(panelisteUid: savedUid);
+          if (status['validatedToday'] == true) {
+            // Créer le lock local pour les lancements suivants
+            try {
+              final file = File(_lockFilePath);
+              await file.writeAsString('validated_\${DateTime.now().toIso8601String()}');
+            } catch (_) {}
+
+            if (mounted) {
+              setState(() {
+                _validated = true;
+                _canValidate = false;
+              });
+            }
+            _timer?.cancel();
+          }
         }
       }
     } catch (_) {}
@@ -373,146 +410,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
         if (!_active) _timer?.cancel();
       });
     }
-    if (active) {
-      await _prepareDailyPage(app['dailyPages']);
-    }
-  }
-
-  Future<void> _prepareDailyPage(dynamic configuredPages) async {
-    if (configuredPages is! List || configuredPages.isEmpty) return;
-
-    try {
-      final startFile = File(_campaignStartPath);
-      if (!await startFile.exists()) {
-        await startFile.writeAsString(_todayKey);
-      }
-
-      final startedAt = DateTime.parse((await startFile.readAsString()).trim());
-      final startDate = DateTime(startedAt.year, startedAt.month, startedAt.day);
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final day = today.difference(startDate).inDays + 1;
-      if (day < 1 || day > 60) return;
-
-      Map<String, dynamic>? page;
-      for (final item in configuredPages) {
-        if (item is Map && (item['day'] as num?)?.toInt() == day) {
-          page = Map<String, dynamic>.from(item);
-          break;
-        }
-      }
-      if (page == null) return;
-
-      final lockFile = File(_dailyPageLockPath(day));
-      if (await lockFile.exists()) return;
-
-      if (mounted) {
-        setState(() {
-          _dailyPage = page;
-          _dailyPageDay = day;
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _dismissDailyPage() async {
-    final day = _dailyPageDay;
-    if (day == null) return;
-
-    try {
-      await File(_dailyPageLockPath(day)).writeAsString('shown_\${DateTime.now().toIso8601String()}');
-    } catch (_) {}
-
-    if (mounted) {
-      setState(() {
-        _dailyPage = null;
-        _dailyPageDay = null;
-      });
-    }
-  }
-
-  Widget _buildDailyPage(Size screenSize) {
-    final page = _dailyPage ?? <String, dynamic>{};
-    final configuredImage = (page['imageUrl'] ?? '').toString().trim();
-    final imageUrl = configuredImage.startsWith('/')
-        ? '\${SamreConfig.baseUrl}\$configuredImage'
-        : configuredImage;
-
-    return Material(
-      color: const Color(0xFFF8FAFC),
-      child: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: screenSize.height - 48),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7ED),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(color: const Color(0xFFFED7AA)),
-                        ),
-                        child: Text(
-                          'JOUR \${_dailyPageDay ?? ''}',
-                          style: const TextStyle(color: Color(0xFFEA580C), fontSize: 12, fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    Text(
-                      (page['title'] ?? '').toString(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFF0A1C38), fontSize: 26, fontWeight: FontWeight.w800),
-                    ),
-                    if ((page['body'] ?? '').toString().trim().isNotEmpty) ...[
-                      const SizedBox(height: 14),
-                      Text(
-                        (page['body'] ?? '').toString(),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFF475569), fontSize: 16, height: 1.6),
-                      ),
-                    ],
-                    if (imageUrl.isNotEmpty) ...[
-                      const SizedBox(height: 24),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Image.network(
-                          imageUrl,
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 28),
-                    ElevatedButton(
-                      onPressed: _dismissDailyPage,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0A1C38),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: Text(
-                        (page['buttonLabel'] ?? 'Continuer').toString(),
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 
   void _initPosition(Size screenSize) {
@@ -571,6 +468,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
       setState(() {
         _validated = true;
+        _canValidate = false;
         _timer?.cancel();
       });
       Future.delayed(const Duration(milliseconds: 1400), () {
@@ -596,7 +494,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     // Le bouton NE DOIT JAMAIS s'afficher sur la page de démarrage (page 1 / splash / accueil initial)
     // Il n'apparaît que quand le testeur a navigué sur une autre page (routeDepth > 0 ou pageChanges > 0 ou interactions suffisantes)
     final bool isStartPage = (SamreRouteObserver.routeDepth == 0 && SamreRouteObserver.pageChanges == 0 && _interactions < 8);
-    final bool showButton = _canValidate && !isStartPage && !_showModal && _dailyPage == null && _btnPosition != null;
+    final bool showButton = _canValidate && !_validated && !isStartPage && !_showModal && _btnPosition != null;
 
     return Directionality(
       textDirection: TextDirection.ltr,
@@ -610,9 +508,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
         child: Stack(
           children: [
             widget.child,
-
-            if (_dailyPage != null)
-              Positioned.fill(child: _buildDailyPage(screenSize)),
 
             // 1. Bouton Flottant Déplaçable au Doigt (UNIQUEMENT sur les autres pages)
             if (showButton)
