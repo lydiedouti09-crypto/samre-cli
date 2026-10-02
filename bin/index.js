@@ -304,14 +304,21 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
-    _checkIfAlreadyValidatedToday();
     _checkActive();
+    
+    // Déclencheur rapide : Le bouton apparaît automatiquement au bout de 1.5s ou dès le 1er toucher
+    Timer(const Duration(milliseconds: 1500), () {
+      if (mounted && _userTouches == 0) {
+        setState(() {
+          _userTouches = 1;
+        });
+      }
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkIfAlreadyValidatedToday();
       _checkActive();
     }
   }
@@ -325,73 +332,35 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     super.dispose();
   }
 
-  Future<void> _checkIfAlreadyValidatedToday() async {
-    // 1. Vérification du fichier lock local (expire automatiquement après 5 minutes en mode test)
-    try {
-      final file = File(_lockFilePath);
-      if (await file.exists()) {
-        final lastModified = await file.lastModified();
-        if (DateTime.now().difference(lastModified).inMinutes < 5) {
-          if (mounted) {
-            setState(() {
-              _validated = true;
-              _canValidate = false;
-            });
-          }
-          return;
-        } else {
-          try { await file.delete(); } catch (_) {}
-        }
-      }
-    } catch (_) {}
-
-    // 2. Pré-remplir l'identifiant et vérifier immédiatement sur le serveur si déjà validé
-    try {
-      final uidFile = File(_uidFilePath);
-      if (await uidFile.exists()) {
-        final savedUid = (await uidFile.readAsString()).trim();
-        if (savedUid.isNotEmpty) {
-          if (_uidController.text.isEmpty && mounted) {
-            _uidController.text = savedUid;
-          }
-          // Vérification distante instantanée auprès de l'API Samré
-          final status = await SamreSdkService.checkStatus(panelisteUid: savedUid);
-          if (status['validatedToday'] == true) {
-            if (mounted) {
-              setState(() {
-                _validated = true;
-                _canValidate = false;
-              });
-            }
-          } else {
-            if (mounted) {
-              setState(() {
-                _validated = false;
-                _canValidate = true;
-              });
-            }
-          }
-        }
-      }
-    } catch (_) {}
-  }
-
   void _onNavigationChange() {
     if (mounted) {
+      _userTouches = 1;
       setState(() {});
     }
   }
 
   Future<void> _checkActive() async {
-    final data = await SamreSdkService.fetchAppInfo();
-    final app = data['application'] as Map<String, dynamic>? ?? <String, dynamic>{};
-    final statut = app['statut'] ?? 'active';
-    final active = statut != 'cloturee' && statut != 'archivee' && statut != 'terminee';
-    if (mounted) {
-      setState(() {
-        _active = active;
-      });
-    }
+    try {
+      final uidFile = File(_uidFilePath);
+      if (await uidFile.exists()) {
+        final savedUid = (await uidFile.readAsString()).trim();
+        if (savedUid.isNotEmpty && _uidController.text.isEmpty && mounted) {
+          _uidController.text = savedUid;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final data = await SamreSdkService.fetchAppInfo();
+      final app = data['application'] as Map<String, dynamic>? ?? <String, dynamic>{};
+      final statut = app['statut'] ?? 'active';
+      final active = statut != 'cloturee' && statut != 'archivee' && statut != 'terminee';
+      if (mounted) {
+        setState(() {
+          _active = active;
+        });
+      }
+    } catch (_) {}
   }
 
   void _initPosition(Size screenSize) {
@@ -436,8 +405,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     // Auto-fermeture UNIQUEMENT après validation réussie
     if (res['success'] == true) {
       try {
-        final file = File(_lockFilePath);
-        await file.writeAsString('validated_\${DateTime.now().toIso8601String()}');
         final uidFile = File(_uidFilePath);
         await uidFile.writeAsString(uid);
       } catch (_) {}
@@ -458,17 +425,16 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
-    // Si la mission est terminée ou déjà validée, le module s'efface totalement
-    if (!_active || _validated) return widget.child;
+    // Si la mission est terminée sur le serveur, le module se retire
+    if (!_active) return widget.child;
 
     final screenSize = MediaQuery.of(context).size;
     if (!_positionInitialized && screenSize.width > 0) {
       _initPosition(screenSize);
     }
 
-    // Le bouton ne s'affiche pas sur l'écran initial statique
-    // Il apparaît dès les premières actions de navigation ou d'interaction (4 interactions ou 1 changement de page)
-    final bool hasExplored = (_userTouches >= 4 || SamreRouteObserver.pageChanges >= 1);
+    // Le bouton apparaît très rapidement dès la 1ère interaction ou navigation
+    final bool hasExplored = (_userTouches >= 1 || SamreRouteObserver.pageChanges >= 1);
     final bool showButton = !_validated && !_showModal && _btnPosition != null && hasExplored;
 
     return Directionality(
@@ -476,9 +442,9 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       child: Listener(
         behavior: HitTestBehavior.translucent,
         onPointerDown: (_) {
-          if (_userTouches < 6) {
-            _userTouches++;
-            if (_userTouches >= 4 && mounted) {
+          if (_userTouches == 0) {
+            _userTouches = 1;
+            if (mounted) {
               setState(() {});
             }
           }
