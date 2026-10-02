@@ -466,9 +466,12 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
     return Directionality(
       textDirection: TextDirection.ltr,
-      child: Stack(
-        children: [
-          widget.child,
+      child: Overlay(
+        initialEntries: [
+          OverlayEntry(
+            builder: (context) => Stack(
+              children: [
+                widget.child,
 
             // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Dark Navy & Orange Samré)
             if (showButton)
@@ -903,8 +906,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                     ),
                   ),
                 ),
-              ),
             ),
+          ),
         ],
       ),
     );
@@ -930,8 +933,21 @@ async function handleInject(options) {
   success("Projet Flutter détecté.");
 
   let apiKey = options.apiKey;
-  const baseUrl = options.apiUrl || 'http://localhost:8000';
-  const token = options.token;
+  let baseUrl = options.apiUrl || 'http://localhost:8000';
+  let token = options.token;
+
+  // Si l'utilisateur a passé l'URL (ex: ngrok) dans --token au lieu de --api-url
+  if (token && (token.startsWith('http://') || token.startsWith('https://'))) {
+    if (token.includes('/api/public/integration/')) {
+      const parts = token.split('/api/public/integration/');
+      baseUrl = parts[0];
+      token = parts[1];
+    } else {
+      baseUrl = token;
+      token = null;
+      info(`URL API détectée : ${baseUrl}`);
+    }
+  }
 
   // 2. Si un token d'intégration est fourni, récupérer les réglages depuis l'API Samré
   if (token) {
@@ -957,7 +973,9 @@ async function handleInject(options) {
   }
 
   if (!apiKey) {
-    error("Token manquant. Syntaxe : npx samre-cli inject --token=VOTRE_TOKEN");
+    error("Token d'intégration manquant.");
+    log(`${YELLOW}Syntaxe standard :${RESET} node c:\\wamp64\\www\\Samre_Global\\samre-cli\\bin\\index.js inject --token=VOTRE_TOKEN`);
+    log(`${YELLOW}Avec ngrok :${RESET} node c:\\wamp64\\www\\Samre_Global\\samre-cli\\bin\\index.js inject --token=VOTRE_TOKEN --api-url=${baseUrl}\n`);
     process.exit(1);
   }
 
