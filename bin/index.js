@@ -284,10 +284,9 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   bool _validated = false;
   bool _active = true;
   bool _showModal = false;
-  int _userTouches = 0;
 
   // Position déplaçable au doigt
-  Offset? _btnPosition;
+  Offset _btnPosition = const Offset(200, 180);
   bool _positionInitialized = false;
 
   final TextEditingController _uidController = TextEditingController();
@@ -305,15 +304,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
     _checkActive();
-    
-    // Déclencheur rapide : Le bouton apparaît automatiquement au bout de 1.5s ou dès le 1er toucher
-    Timer(const Duration(milliseconds: 1500), () {
-      if (mounted && _userTouches == 0) {
-        setState(() {
-          _userTouches = 1;
-        });
-      }
-    });
   }
 
   @override
@@ -334,7 +324,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   void _onNavigationChange() {
     if (mounted) {
-      _userTouches = 1;
       setState(() {});
     }
   }
@@ -364,7 +353,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   }
 
   void _initPosition(Size screenSize) {
-    if (_positionInitialized) return;
+    if (_positionInitialized || screenSize.width <= 0) return;
     _positionInitialized = true;
     
     // Position dynamique selon le jour pour varier l'emplacement dans l'app
@@ -433,28 +422,17 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _initPosition(screenSize);
     }
 
-    // Le bouton apparaît très rapidement dès la 1ère interaction ou navigation
-    final bool hasExplored = (_userTouches >= 1 || SamreRouteObserver.pageChanges >= 1);
-    final bool showButton = !_validated && !_showModal && _btnPosition != null && hasExplored;
+    // Le bouton est visible directement et s'ouvre au clic
+    final bool showButton = !_validated && !_showModal;
 
     return Directionality(
       textDirection: TextDirection.ltr,
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) {
-          if (_userTouches == 0) {
-            _userTouches = 1;
-            if (mounted) {
-              setState(() {});
-            }
-          }
-        },
-        child: Overlay(
-          initialEntries: [
-            OverlayEntry(
-              builder: (context) => Stack(
-                children: [
-                  widget.child,
+      child: Overlay(
+        initialEntries: [
+          OverlayEntry(
+            builder: (context) => Stack(
+              children: [
+                widget.child,
 
             // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Dark Navy & Orange Samré)
             if (showButton)
@@ -844,14 +822,12 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                   ),
                 ),
               ),
-            ),
-        ],
-      ),
+            ],
+          ),
+        ),
+      ],
     ),
-  ],
-),
-),
-);
+  );
   }
 }
 `;
