@@ -812,7 +812,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               Text(
-                                                'Valider ma présence aujourd\'hui',
+                                                "Valider ma présence aujourd'hui",
                                                 style: TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 13.5,
