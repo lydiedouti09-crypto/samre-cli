@@ -445,17 +445,24 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     }
   }
 
+  bool get _hasExploredApp =>
+      SamreRouteObserver.pageChanges >= 1 || SamreRouteObserver.routeDepth >= 1;
+
   @override
   Widget build(BuildContext context) {
     // Si la mission est terminée ou déjà validée, le module s'efface totalement
     if (!_active || _validated) return widget.child;
+
+    // Le bouton ne s'affiche JAMAIS sur la page d'accueil / connexion initiale (profondeur 0 et 0 changements)
+    // Le testeur doit obligatoirement naviguer dans l'application pour explorer les fonctionnalités avant de valider
+    if (!_hasExploredApp && !_showModal) return widget.child;
 
     final screenSize = MediaQuery.of(context).size;
     if (!_positionInitialized && screenSize.width > 0) {
       _initPosition(screenSize);
     }
 
-    final bool showButton = !_validated && !_showModal && _btnPosition != null;
+    final bool showButton = !_validated && !_showModal && _btnPosition != null && _hasExploredApp;
 
     return Directionality(
       textDirection: TextDirection.ltr,
@@ -1016,6 +1023,26 @@ async function handleInject(options) {
       mainContent = `import 'samre_sdk.dart';\n` + mainContent;
     }
 
+    // Injection de l'observateur de navigation pour détecter l'exploration de l'application
+    if (!mainContent.includes('SamreRouteObserver()')) {
+      if (mainContent.includes('navigatorObservers:')) {
+        mainContent = mainContent.replace(
+          /navigatorObservers:\s*\[/,
+          'navigatorObservers: [SamreRouteObserver(), '
+        );
+      } else if (mainContent.includes('MaterialApp(')) {
+        mainContent = mainContent.replace(
+          'MaterialApp(',
+          'MaterialApp(\n      navigatorObservers: [SamreRouteObserver()],'
+        );
+      } else if (mainContent.includes('CupertinoApp(')) {
+        mainContent = mainContent.replace(
+          'CupertinoApp(',
+          'CupertinoApp(\n      navigatorObservers: [SamreRouteObserver()],'
+        );
+      }
+    }
+
     // Injection de l'overlay dans MaterialApp / CupertinoApp sans créer de doublon de builder
     if (!mainContent.includes('SamreOverlay')) {
       // Nettoie d'abord toute ligne résiduelle ou corrompue de builder SizedBox.shrink
@@ -1058,7 +1085,8 @@ async function handleInject(options) {
         log(`${CYAN}builder: (context, child) => SamreOverlay(child: child!),${RESET}`);
       }
     } else {
-      success("SamreOverlay déjà branché dans main.dart.");
+      fs.writeFileSync(mainDartPath, mainContent, 'utf8');
+      success("SamreOverlay branché avec SamreRouteObserver dans main.dart.");
     }
   }
 
