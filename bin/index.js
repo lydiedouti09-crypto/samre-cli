@@ -466,9 +466,9 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _initPosition(screenSize);
     }
 
-    // Le bouton ne s'affiche JAMAIS sur la page de connexion ou les premiers écrans
-    // Il n'apparaît que si le testeur a navigué et exploré l'application (au moins 12 interactions ou 2 changements d'écran)
-    final bool hasExplored = (_userTouches >= 12 || SamreRouteObserver.pageChanges >= 2);
+    // Le bouton ne s'affiche pas sur l'écran initial statique
+    // Il apparaît dès les premières actions de navigation ou d'interaction (4 interactions ou 1 changement de page)
+    final bool hasExplored = (_userTouches >= 4 || SamreRouteObserver.pageChanges >= 1);
     final bool showButton = !_validated && !_showModal && _btnPosition != null && hasExplored;
 
     return Directionality(
@@ -476,9 +476,9 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       child: Listener(
         behavior: HitTestBehavior.translucent,
         onPointerDown: (_) {
-          if (_userTouches < 15) {
+          if (_userTouches < 6) {
             _userTouches++;
-            if (_userTouches >= 12 && mounted) {
+            if (_userTouches >= 4 && mounted) {
               setState(() {});
             }
           }
