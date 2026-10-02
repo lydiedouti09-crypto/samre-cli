@@ -822,12 +822,13 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      ),
+    ],
+  ),
+);
   }
 }
 `;
