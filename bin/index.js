@@ -244,26 +244,11 @@ class SamreSdkService {
 class SamreRouteObserver extends NavigatorObserver {
   static int routeDepth = 0;
   static int pageChanges = 0;
-  static String? currentRouteName;
   static final ValueNotifier<int> navigationNotifier = ValueNotifier<int>(0);
-
-  static bool isAuthOrSplashScreen() {
-    final name = (currentRouteName ?? '').toLowerCase();
-    if (name.isEmpty) return false;
-    return name.contains('splash') ||
-        name.contains('login') ||
-        name.contains('signin') ||
-        name.contains('auth') ||
-        name.contains('connexion') ||
-        name.contains('welcome') ||
-        name.contains('intro') ||
-        name.contains('onboard');
-  }
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
-    currentRouteName = route.settings.name;
     if (previousRoute != null) {
       routeDepth++;
       pageChanges++;
@@ -274,7 +259,6 @@ class SamreRouteObserver extends NavigatorObserver {
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
-    currentRouteName = previousRoute?.settings.name;
     if (routeDepth > 0) routeDepth--;
     navigationNotifier.value++;
   }
@@ -282,7 +266,6 @@ class SamreRouteObserver extends NavigatorObserver {
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    currentRouteName = newRoute?.settings.name;
     pageChanges++;
     navigationNotifier.value++;
   }
@@ -324,9 +307,9 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
     _checkActive();
 
-    // Révélation automatique si l'utilisateur est déjà dans l'app après quelques secondes
-    Future.delayed(const Duration(seconds: 8), () {
-      if (mounted && !_revealed && SamreRouteObserver.pageChanges >= 1) {
+    // Révélation automatique après un court délai (laisse passer le splash screen de 3-4 secondes)
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted && !_revealed) {
         setState(() {
           _revealed = true;
         });
@@ -352,11 +335,13 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   void _onNavigationChange() {
     if (mounted) {
-      // Révéler dès que le testeur a navigué vers l'application principale (au moins 2 transitions: Splash -> Login -> Home)
-      if (SamreRouteObserver.pageChanges >= 2) {
-        _revealed = true;
+      if (!_revealed) {
+        setState(() {
+          _revealed = true;
+        });
+      } else {
+        setState(() {});
       }
-      setState(() {});
     }
   }
 
@@ -439,10 +424,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _initPosition(screenSize);
     }
 
-    final isAuthOrSplash = SamreRouteObserver.isAuthOrSplashScreen();
-    final bool hasNavigatedToApp = _revealed || SamreRouteObserver.pageChanges >= 2;
-    // Ne JAMAIS afficher sur le splash screen ni sur l'écran de connexion / bienvenue
-    final bool showButton = !_validated && !_showModal && hasNavigatedToApp && !isAuthOrSplash;
+    // Le bouton apparaît dès que le splash est passé (après 4 secondes ou après interactions)
+    final bool showButton = !_validated && !_showModal && _revealed;
 
     return Directionality(
       textDirection: TextDirection.ltr,
@@ -455,7 +438,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                   behavior: HitTestBehavior.translucent,
                   onPointerDown: (_) {
                     _touchCount++;
-                    if (!_revealed && (SamreRouteObserver.pageChanges >= 2 || (SamreRouteObserver.pageChanges >= 1 && _touchCount >= 6))) {
+                    if (!_revealed && (_touchCount >= 2 || SamreRouteObserver.pageChanges >= 1)) {
                       setState(() {
                         _revealed = true;
                       });
