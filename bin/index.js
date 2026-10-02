@@ -284,6 +284,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   bool _validated = false;
   bool _active = true;
   bool _showModal = false;
+  int _userTouches = 0;
 
   // Position déplaçable au doigt
   Offset _btnPosition = const Offset(200, 180);
@@ -422,30 +423,42 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _initPosition(screenSize);
     }
 
-    // Le bouton est visible directement et s'ouvre au clic
-    final bool showButton = !_validated && !_showModal;
+    // Le bouton ne s'affiche JAMAIS sur la page de connexion ou le tout premier écran
+    // Il n'apparaît qu'une fois que le testeur navigue (au moins 1 changement d'écran ou 6 interactions)
+    final bool hasExplored = (SamreRouteObserver.pageChanges >= 1 || _userTouches >= 6);
+    final bool showButton = !_validated && !_showModal && hasExplored;
 
     return Directionality(
       textDirection: TextDirection.ltr,
-      child: Overlay(
-        initialEntries: [
-          OverlayEntry(
-            builder: (context) => Stack(
-              children: [
-                widget.child,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) {
+          if (_userTouches < 7) {
+            _userTouches++;
+            if (_userTouches >= 6 && mounted) {
+              setState(() {});
+            }
+          }
+        },
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => Stack(
+                children: [
+                  widget.child,
 
             // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Dark Navy & Orange Samré)
             if (showButton)
               Positioned(
-                left: _btnPosition!.dx.clamp(12.0, (screenSize.width - 175.0).clamp(12.0, double.infinity)),
-                top: _btnPosition!.dy.clamp(50.0, (screenSize.height - 85.0).clamp(50.0, double.infinity)),
+                left: _btnPosition.dx.clamp(12.0, (screenSize.width - 175.0).clamp(12.0, double.infinity)),
+                top: _btnPosition.dy.clamp(50.0, (screenSize.height - 85.0).clamp(50.0, double.infinity)),
                 child: SafeArea(
                   child: GestureDetector(
                     onPanUpdate: (details) {
                       setState(() {
                         _btnPosition = Offset(
-                          _btnPosition!.dx + details.delta.dx,
-                          _btnPosition!.dy + details.delta.dy,
+                          _btnPosition.dx + details.delta.dx,
+                          _btnPosition.dy + details.delta.dy,
                         );
                       });
                     },
@@ -581,7 +594,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       const Text(
-                                        'Validation SAMRÉ',
+                                        'Validation test',
                                         style: TextStyle(
                                           color: Color(0xFF0F172A),
                                           fontSize: 16,
@@ -799,7 +812,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               Text(
-                                                'Valider ma présence aujourd\\'hui',
+                                                'Valider ma présence aujourd\'hui',
                                                 style: TextStyle(
                                                   color: Colors.white,
                                                   fontSize: 13.5,
@@ -828,6 +841,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       ),
     ],
   ),
+),
 );
   }
 }
