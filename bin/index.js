@@ -284,7 +284,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   bool _validated = false;
   bool _active = true;
   bool _showModal = false;
-  bool _revealed = false;
 
   // Position déplaçable au doigt
   Offset _btnPosition = const Offset(200, 180);
@@ -305,15 +304,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
     _checkActive();
-
-    // Masqué au tout début (connexion), puis apparaît dès que l'utilisateur navigue ou après 3 secondes
-    Timer(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          _revealed = true;
-        });
-      }
-    });
   }
 
   @override
@@ -334,9 +324,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   void _onNavigationChange() {
     if (mounted) {
-      setState(() {
-        _revealed = true;
-      });
+      setState(() {});
     }
   }
 
@@ -348,18 +336,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
         if (savedUid.isNotEmpty && _uidController.text.isEmpty && mounted) {
           _uidController.text = savedUid;
         }
-      }
-    } catch (_) {}
-
-    try {
-      final data = await SamreSdkService.fetchAppInfo();
-      final app = data['application'] as Map<String, dynamic>? ?? <String, dynamic>{};
-      final statut = app['statut'] ?? 'active';
-      final active = statut != 'cloturee' && statut != 'archivee' && statut != 'terminee';
-      if (mounted) {
-        setState(() {
-          _active = active;
-        });
       }
     } catch (_) {}
   }
@@ -426,16 +402,13 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   @override
   Widget build(BuildContext context) {
-    // Si la mission est terminée sur le serveur, le module se retire
-    if (!_active) return widget.child;
-
     final screenSize = MediaQuery.of(context).size;
     if (!_positionInitialized && screenSize.width > 0) {
       _initPosition(screenSize);
     }
 
-    // Le bouton est masqué au tout début (connexion), puis apparaît dès que l'utilisateur navigue ou explore l'app
-    final bool showButton = !_validated && !_showModal && _revealed;
+    // Le bouton est directement visible et accessible
+    final bool showButton = !_validated && !_showModal;
 
     return Directionality(
       textDirection: TextDirection.ltr,
