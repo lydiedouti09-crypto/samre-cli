@@ -244,11 +244,26 @@ class SamreSdkService {
 class SamreRouteObserver extends NavigatorObserver {
   static int routeDepth = 0;
   static int pageChanges = 0;
+  static String? currentRouteName;
   static final ValueNotifier<int> navigationNotifier = ValueNotifier<int>(0);
+
+  static bool isAuthOrSplashScreen() {
+    final name = (currentRouteName ?? '').toLowerCase();
+    if (name.isEmpty) return false;
+    return name.contains('splash') ||
+        name.contains('login') ||
+        name.contains('signin') ||
+        name.contains('auth') ||
+        name.contains('connexion') ||
+        name.contains('welcome') ||
+        name.contains('intro') ||
+        name.contains('onboard');
+  }
 
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
+    currentRouteName = route.settings.name;
     if (previousRoute != null) {
       routeDepth++;
       pageChanges++;
@@ -259,6 +274,7 @@ class SamreRouteObserver extends NavigatorObserver {
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
+    currentRouteName = previousRoute?.settings.name;
     if (routeDepth > 0) routeDepth--;
     navigationNotifier.value++;
   }
@@ -266,6 +282,7 @@ class SamreRouteObserver extends NavigatorObserver {
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    currentRouteName = newRoute?.settings.name;
     pageChanges++;
     navigationNotifier.value++;
   }
@@ -284,6 +301,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   bool _validated = false;
   bool _active = true;
   bool _showModal = false;
+  bool _revealed = false;
+  int _touchCount = 0;
 
   // Position déplaçable au doigt
   Offset _btnPosition = const Offset(200, 180);
@@ -304,6 +323,15 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
     _checkActive();
+
+    // Révélation automatique si l'utilisateur est déjà dans l'app après quelques secondes
+    Future.delayed(const Duration(seconds: 8), () {
+      if (mounted && !_revealed && SamreRouteObserver.pageChanges >= 1) {
+        setState(() {
+          _revealed = true;
+        });
+      }
+    });
   }
 
   @override
@@ -324,6 +352,10 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   void _onNavigationChange() {
     if (mounted) {
+      // Révéler dès que le testeur a navigué vers l'application principale (au moins 2 transitions: Splash -> Login -> Home)
+      if (SamreRouteObserver.pageChanges >= 2) {
+        _revealed = true;
+      }
       setState(() {});
     }
   }
@@ -344,17 +376,17 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     if (_positionInitialized || screenSize.width <= 0) return;
     _positionInitialized = true;
     
-    // Position dynamique selon le jour pour varier l'emplacement dans l'app
+    // Position discrète par défaut en bas à droite (évite de masquer les en-têtes ou boutons de retour)
     final day = DateTime.now().day;
     final seed = day % 4;
     if (seed == 1) {
-      _btnPosition = Offset(screenSize.width - 165, 80);
+      _btnPosition = Offset(screenSize.width - 165, screenSize.height - 140);
     } else if (seed == 2) {
       _btnPosition = Offset(screenSize.width - 165, (screenSize.height / 2) - 25);
     } else if (seed == 3) {
-      _btnPosition = Offset(20, screenSize.height - 110);
+      _btnPosition = Offset(16, screenSize.height - 140);
     } else {
-      _btnPosition = Offset(screenSize.width - 165, screenSize.height - 110);
+      _btnPosition = Offset(screenSize.width - 165, screenSize.height - 140);
     }
   }
 
@@ -407,8 +439,10 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _initPosition(screenSize);
     }
 
-    // Le bouton est directement visible et accessible
-    final bool showButton = !_validated && !_showModal;
+    final isAuthOrSplash = SamreRouteObserver.isAuthOrSplashScreen();
+    final bool hasNavigatedToApp = _revealed || SamreRouteObserver.pageChanges >= 2;
+    // Ne JAMAIS afficher sur le splash screen ni sur l'écran de connexion / bienvenue
+    final bool showButton = !_validated && !_showModal && hasNavigatedToApp && !isAuthOrSplash;
 
     return Directionality(
       textDirection: TextDirection.ltr,
@@ -417,7 +451,18 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
           OverlayEntry(
             builder: (context) => Stack(
               children: [
-                widget.child,
+                Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: (_) {
+                    _touchCount++;
+                    if (!_revealed && (SamreRouteObserver.pageChanges >= 2 || (SamreRouteObserver.pageChanges >= 1 && _touchCount >= 6))) {
+                      setState(() {
+                        _revealed = true;
+                      });
+                    }
+                  },
+                  child: widget.child,
+                ),
 
             // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Dark Navy & Orange Samré)
             if (showButton)
