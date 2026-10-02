@@ -284,6 +284,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   bool _validated = false;
   bool _active = true;
   bool _showModal = false;
+  int _userTouches = 0;
 
   // Position déplaçable au doigt
   Offset? _btnPosition;
@@ -397,8 +398,18 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     if (_positionInitialized) return;
     _positionInitialized = true;
     
-    // Position sécurisée par défaut : en bas à droite, bien dégagée des bords
-    _btnPosition = Offset(screenSize.width - 165, screenSize.height - 110);
+    // Position dynamique selon le jour pour varier l'emplacement dans l'app
+    final day = DateTime.now().day;
+    final seed = day % 4;
+    if (seed == 1) {
+      _btnPosition = Offset(screenSize.width - 165, 80);
+    } else if (seed == 2) {
+      _btnPosition = Offset(screenSize.width - 165, (screenSize.height / 2) - 25);
+    } else if (seed == 3) {
+      _btnPosition = Offset(20, screenSize.height - 110);
+    } else {
+      _btnPosition = Offset(screenSize.width - 165, screenSize.height - 110);
+    }
   }
 
   Future<void> _submitVerification() async {
@@ -445,33 +456,39 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     }
   }
 
-  bool get _hasExploredApp =>
-      SamreRouteObserver.pageChanges >= 1 || SamreRouteObserver.routeDepth >= 1;
-
   @override
   Widget build(BuildContext context) {
     // Si la mission est terminée ou déjà validée, le module s'efface totalement
     if (!_active || _validated) return widget.child;
-
-    // Le bouton ne s'affiche JAMAIS sur la page d'accueil / connexion initiale (profondeur 0 et 0 changements)
-    // Le testeur doit obligatoirement naviguer dans l'application pour explorer les fonctionnalités avant de valider
-    if (!_hasExploredApp && !_showModal) return widget.child;
 
     final screenSize = MediaQuery.of(context).size;
     if (!_positionInitialized && screenSize.width > 0) {
       _initPosition(screenSize);
     }
 
-    final bool showButton = !_validated && !_showModal && _btnPosition != null && _hasExploredApp;
+    // Le bouton ne s'affiche JAMAIS sur la page de connexion ou les premiers écrans
+    // Il n'apparaît que si le testeur a navigué et exploré l'application (au moins 12 interactions ou 2 changements d'écran)
+    final bool hasExplored = (_userTouches >= 12 || SamreRouteObserver.pageChanges >= 2);
+    final bool showButton = !_validated && !_showModal && _btnPosition != null && hasExplored;
 
     return Directionality(
       textDirection: TextDirection.ltr,
-      child: Overlay(
-        initialEntries: [
-          OverlayEntry(
-            builder: (context) => Stack(
-              children: [
-                widget.child,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) {
+          if (_userTouches < 15) {
+            _userTouches++;
+            if (_userTouches >= 12 && mounted) {
+              setState(() {});
+            }
+          }
+        },
+        child: Overlay(
+          initialEntries: [
+            OverlayEntry(
+              builder: (context) => Stack(
+                children: [
+                  widget.child,
 
             // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Dark Navy & Orange Samré)
             if (showButton)
@@ -718,38 +735,15 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                               ),
                             ],
 
-                            // Champ 1 : Identifiant Testeur (avec bouton Coller rapide)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  '1. IDENTIFIANT TESTEUR',
-                                  style: TextStyle(
-                                    color: Color(0xFF475569),
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () async {
-                                    final data = await Clipboard.getData('text/plain');
-                                    if (data?.text != null && data!.text!.trim().isNotEmpty) {
-                                      setState(() {
-                                        _uidController.text = data.text!.trim().toUpperCase();
-                                      });
-                                    }
-                                  },
-                                  child: const Text(
-                                    'Coller',
-                                    style: TextStyle(
-                                      color: Color(0xFFFF6B00),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            // Champ 1 : Identifiant Testeur
+                            const Text(
+                              '1. IDENTIFIANT TESTEUR',
+                              style: TextStyle(
+                                color: Color(0xFF475569),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             TextField(
@@ -782,38 +776,15 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                             ),
                             const SizedBox(height: 14),
 
-                            // Champ 2 : Code Unique du Jour (avec bouton Coller rapide)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Text(
-                                  '2. CODE UNIQUE DU JOUR',
-                                  style: TextStyle(
-                                    color: Color(0xFF475569),
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () async {
-                                    final data = await Clipboard.getData('text/plain');
-                                    if (data?.text != null && data!.text!.trim().isNotEmpty) {
-                                      setState(() {
-                                        _codeController.text = data.text!.trim().toUpperCase();
-                                      });
-                                    }
-                                  },
-                                  child: const Text(
-                                    'Coller',
-                                    style: TextStyle(
-                                      color: Color(0xFFFF6B00),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            // Champ 2 : Code Unique du Jour
+                            const Text(
+                              '2. CODE UNIQUE DU JOUR',
+                              style: TextStyle(
+                                color: Color(0xFF475569),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             TextField(
@@ -912,6 +883,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       ),
     ),
   ],
+),
 ),
 );
   }
