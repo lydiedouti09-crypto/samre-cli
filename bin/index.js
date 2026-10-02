@@ -284,7 +284,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   bool _validated = false;
   bool _active = true;
   bool _showModal = false;
-  int _userTouches = 0;
+  bool _revealed = false;
 
   // Position déplaçable au doigt
   Offset _btnPosition = const Offset(200, 180);
@@ -305,6 +305,15 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
     _checkActive();
+
+    // Masqué au tout début (connexion), puis apparaît dès que l'utilisateur navigue ou après 3 secondes
+    Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _revealed = true;
+        });
+      }
+    });
   }
 
   @override
@@ -325,7 +334,9 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   void _onNavigationChange() {
     if (mounted) {
-      setState(() {});
+      setState(() {
+        _revealed = true;
+      });
     }
   }
 
@@ -423,29 +434,17 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _initPosition(screenSize);
     }
 
-    // Le bouton ne s'affiche JAMAIS sur la page de connexion ou le tout premier écran
-    // Il n'apparaît qu'une fois que le testeur navigue (au moins 1 changement d'écran ou 6 interactions)
-    final bool hasExplored = (SamreRouteObserver.pageChanges >= 1 || _userTouches >= 6);
-    final bool showButton = !_validated && !_showModal && hasExplored;
+    // Le bouton est masqué au tout début (connexion), puis apparaît dès que l'utilisateur navigue ou explore l'app
+    final bool showButton = !_validated && !_showModal && _revealed;
 
     return Directionality(
       textDirection: TextDirection.ltr,
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) {
-          if (_userTouches < 7) {
-            _userTouches++;
-            if (_userTouches >= 6 && mounted) {
-              setState(() {});
-            }
-          }
-        },
-        child: Overlay(
-          initialEntries: [
-            OverlayEntry(
-              builder: (context) => Stack(
-                children: [
-                  widget.child,
+      child: Overlay(
+        initialEntries: [
+          OverlayEntry(
+            builder: (context) => Stack(
+              children: [
+                widget.child,
 
             // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Dark Navy & Orange Samré)
             if (showButton)
@@ -841,7 +840,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       ),
     ],
   ),
-),
 );
   }
 }
