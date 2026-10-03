@@ -429,12 +429,9 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
     return Directionality(
       textDirection: TextDirection.ltr,
-      child: Overlay(
-        initialEntries: [
-          OverlayEntry(
-            builder: (context) => Stack(
-              children: [
-                Listener(
+      child: Stack(
+        children: [
+          Listener(
                   behavior: HitTestBehavior.translucent,
                   onPointerDown: (_) {
                     _touchCount++;
@@ -836,12 +833,9 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
                 ),
               ),
             ),
-          ],
-        ),
+        ],
       ),
-    ],
-  ),
-);
+    );
   }
 }
 `;
