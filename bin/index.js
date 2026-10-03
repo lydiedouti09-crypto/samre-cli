@@ -286,6 +286,8 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
   bool _showModal = false;
   bool _revealed = false;
   int _touchCount = 0;
+  int _activeSeconds = 0;
+  Timer? _sessionTimer;
 
   // Position déplaçable au doigt
   Offset _btnPosition = const Offset(200, 180);
@@ -306,17 +308,46 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
     _checkActive();
+    _startSessionTimer();
+  }
+
+  void _startSessionTimer() {
+    _sessionTimer?.cancel();
+    _sessionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      _activeSeconds++;
+      _checkRevealCondition();
+    });
+  }
+
+  void _checkRevealCondition() {
+    if (_revealed || _validated) return;
+
+    // Le testeur doit avoir exploré l'application pendant au moins 60 secondes (1 minute)
+    // ET avoir navigué au-delà de la page de connexion (au moins 2 transitions d'écrans)
+    final bool hasTime = _activeSeconds >= 60;
+    final bool hasNavigated = SamreRouteObserver.pageChanges >= 2 || (SamreRouteObserver.pageChanges >= 1 && _touchCount >= 12);
+
+    if (hasTime && hasNavigated) {
+      setState(() {
+        _revealed = true;
+      });
+    }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _checkActive();
+      _startSessionTimer();
+    } else if (state == AppLifecycleState.paused) {
+      _sessionTimer?.cancel();
     }
   }
 
   @override
   void dispose() {
+    _sessionTimer?.cancel();
     SamreRouteObserver.navigationNotifier.removeListener(_onNavigationChange);
     WidgetsBinding.instance.removeObserver(this);
     _uidController.dispose();
@@ -326,10 +357,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   void _onNavigationChange() {
     if (mounted) {
-      // Révélation dès que le testeur a navigué vers l'application principale (au moins 2 transitions d'écrans)
-      if (SamreRouteObserver.pageChanges >= 2) {
-        _revealed = true;
-      }
+      _checkRevealCondition();
       setState(() {});
     }
   }
@@ -424,14 +452,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
             behavior: HitTestBehavior.translucent,
             onPointerDown: (_) {
               _touchCount++;
-              if (!_revealed) {
-                // Révélation si au moins 2 changements de pages (Splash -> Login -> Home) OU 8 interactions après être entré dans l'app
-                if (SamreRouteObserver.pageChanges >= 2 || (SamreRouteObserver.pageChanges >= 1 && _touchCount >= 8)) {
-                  setState(() {
-                    _revealed = true;
-                  });
-                }
-              }
+              _checkRevealCondition();
             },
             child: widget.child,
           ),
