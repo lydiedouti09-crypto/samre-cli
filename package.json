@@ -1,6 +1,6 @@
 {
   "name": "samre-cli",
-  "version": "1.3.9",
+  "version": "1.4.0",
   "description": "CLI officielle Samré pour l'injection automatique du SDK dans les applications mobiles Flutter.",
   "main": "bin/index.js",
   "bin": {

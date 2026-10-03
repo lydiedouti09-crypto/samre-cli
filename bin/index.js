@@ -306,15 +306,6 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     SamreRouteObserver.navigationNotifier.addListener(_onNavigationChange);
     _checkActive();
-
-    // Révélation automatique après un court délai (laisse passer le splash screen de 3-4 secondes)
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted && !_revealed) {
-        setState(() {
-          _revealed = true;
-        });
-      }
-    });
   }
 
   @override
@@ -335,13 +326,11 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
 
   void _onNavigationChange() {
     if (mounted) {
-      if (!_revealed) {
-        setState(() {
-          _revealed = true;
-        });
-      } else {
-        setState(() {});
+      // Révélation dès que le testeur a navigué vers l'application principale (au moins 2 transitions d'écrans)
+      if (SamreRouteObserver.pageChanges >= 2) {
+        _revealed = true;
       }
+      setState(() {});
     }
   }
 
@@ -424,7 +413,7 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       _initPosition(screenSize);
     }
 
-    // Le bouton apparaît dès que le splash est passé (après 4 secondes ou après interactions)
+    // Le bouton apparaît UNIQUEMENT après navigation réelle dans l'application
     final bool showButton = !_validated && !_showModal && _revealed;
 
     return Directionality(
@@ -432,17 +421,20 @@ class _SamreOverlayState extends State<SamreOverlay> with WidgetsBindingObserver
       child: Stack(
         children: [
           Listener(
-                  behavior: HitTestBehavior.translucent,
-                  onPointerDown: (_) {
-                    _touchCount++;
-                    if (!_revealed && (_touchCount >= 2 || SamreRouteObserver.pageChanges >= 1)) {
-                      setState(() {
-                        _revealed = true;
-                      });
-                    }
-                  },
-                  child: widget.child,
-                ),
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: (_) {
+              _touchCount++;
+              if (!_revealed) {
+                // Révélation si au moins 2 changements de pages (Splash -> Login -> Home) OU 8 interactions après être entré dans l'app
+                if (SamreRouteObserver.pageChanges >= 2 || (SamreRouteObserver.pageChanges >= 1 && _touchCount >= 8)) {
+                  setState(() {
+                    _revealed = true;
+                  });
+                }
+              }
+            },
+            child: widget.child,
+          ),
 
             // 1. Bouton Flottant Déplaçable au Doigt (Design Pilule Dark Navy & Orange Samré)
             if (showButton)
